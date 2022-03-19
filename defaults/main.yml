@@ -1,0 +1,39 @@
+
+# Enable BasicHardening at all
+BasicHardeningEnable: true
+
+# Enable Updating the issue and issue.net
+BasicHardeningEnableIssue: true 
+
+# Enable Basic Hardening for SSH
+BasicHardeningEnableSSH: true 
+
+# Disable SSH Root login
+BasicHardeningDisableSSHRootLogin: true
+
+# number of maximum concurrent ssh client sessions
+BasicHardeningSSHClientAliveCountMax: 2
+
+# number of maximum ssh auth retries
+BasicHardeningSSHMaxAuthRetries: 2
+
+# the default umask to set
+BasicHardeningUmask: "027"
+
+# the mimimum password age in days
+BasicHardeningMinPasswordAge: 1
+
+# the maximum password age in days
+BasicHardeningMaxPasswordAge: 700
+
+# shall lynis tool be installed
+BasicHardeningInstallLynis: true
+
+# shall rkhunter be installed
+BasicHardeningInstallRkhunter: true 
+
+# shall fail2ban be installed
+BasicHardeningInstallFail2Ban: true
+
+# shall usbguard be installed
+BasicHardeningInstallUSBGuard: true

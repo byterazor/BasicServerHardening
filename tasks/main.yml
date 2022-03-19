@@ -1,0 +1,416 @@
+---
+
+# plays for setting up basic security hardening 
+
+
+#
+# Setup /etc/issue 
+#
+- name: Setup /etc/issue
+  template:
+     src: "issue"
+     dest: "/etc/issue"
+  when: BasicHardeningEnable and BasicHardeningEnableIssue
+
+#
+# Setup /etc/issue.net
+#
+- name: Setup /etc/issue.net
+  template:
+     src: "issue"
+     dest: "/etc/issue.net"
+  when: BasicHardeningEnable and BasicHardeningEnableIssue
+
+#
+# Disable ssh root login 
+#
+
+- name: Disable SSH Root Login
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^PermitRootLogin'
+           line: "PermitRootLogin no"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH and BasicHardeningDisableSSHRootLogin
+  notify:
+       - restart ssh
+
+#
+# set maximum number of concurrent ssh client sessions
+#
+- name: SSH Update ClientAliveCountMax
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^ClientAliveCountMax'
+           line: "ClientAliveCountMax {{BasicHardeningSSHClientAliveCountMax}}"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH 
+  notify:
+       - restart ssh
+
+
+- name: SSH Update MaxSessions
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^MaxSessions'
+           line: "MaxSessions {{BasicHardeningSSHClientAliveCountMax}}"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH
+  notify:
+       - restart ssh
+
+
+#
+# setup SSH compression
+#
+- name: SSH Update Compression
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^Compression'
+           line: "Compression delayed"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH 
+  notify:
+       - restart ssh
+
+#
+# setup ssh max auth tries
+#
+- name: SSH Update MaxAuthTries
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^MaxAuthTries'
+           line: "MaxAuthTries {{BasicHardeningSSHMaxAuthRetries}}"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH 
+  notify:
+       - restart ssh
+
+
+- name: SSH Update TCPKeepAlive
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^TCPKeepAlive'
+           line: "TCPKeepAlive No"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH and ansible_facts.distribution_release != "stretch"
+  notify:
+       - restart ssh
+
+- name: SSH Update X11Forwarding
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^X11Forwarding'
+           line: "X11Forwarding No"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH and ansible_facts.distribution_release != "stretch"
+  notify:
+       - restart ssh
+
+- name: SSH enable Banner
+  lineinfile:
+           dest: /etc/ssh/sshd_config
+           regexp: '^Banner'
+           line: "Banner /etc/issue.net"
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningEnableSSH and BasicHardeningEnableIssue
+  notify:
+       - restart ssh
+
+#
+# setup umask in login.defs
+#
+- name: Set default login.defs umask to 027
+  lineinfile:
+      dest: /etc/login.defs
+      regexp: '^UMASK'
+      line: "UMASK    {{BasicHardeningUmask}}"
+      state: present
+      backup: yes
+  when: BasicHardeningEnable
+
+#
+# setup minimum password age in login.defs
+#
+- name: Set minimum password age in login.defs
+  lineinfile:
+      dest: /etc/login.defs
+      regexp: '^PASS_MIN_DAYS'
+      line: "PASS_MIN_DAYS  {{BasicHardeningMinPasswordAge}}"
+      state: present
+      backup: yes
+  when: BasicHardeningEnable
+
+#
+# setup maximum password age in login.defs
+#
+- name: Set maximum password age in login.defs
+  lineinfile:
+      dest: /etc/login.defs
+      regexp: '^PASS_MAX_DAYS'
+      line: "PASS_MAX_DAYS {{BasicHardeningMaxPasswordAge}}"
+      state: present
+      backup: yes
+  when: BasicHardeningEnable
+
+#
+# setup some security related kernel parameters
+#
+- name: Enable spoof protection
+  sysctl:
+    name: net.ipv4.conf.default.rp_filter
+    value: '1'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Enable spoof protection 2
+  sysctl:
+    name: net.ipv4.conf.all.rp_filter
+    value: '1'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Enable syn cookies
+  sysctl:
+    name: net.ipv4.tcp_syncookies
+    value: '1'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Disable IPv4 ICMP Redirects
+  sysctl:
+    name: net.ipv4.conf.all.accept_redirects
+    value: '0'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Disable IPv6 ICMP Redirects
+  sysctl:
+    name: net.ipv6.conf.all.accept_redirects
+    value: '0'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Disable Sending IPv4 ICMP Redirects
+  sysctl:
+    name: net.ipv4.conf.all.send_redirects
+    value: '0'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Enable ALSR
+  sysctl:
+    name: kernel.randomize_va_space
+    value: '2'
+    state: present
+  when: BasicHardeningEnable
+
+#
+# Install and enable fail2ban
+#
+- name: Install fail2ban
+  package:
+    name: fail2ban
+    state: latest
+  when: BasicHardeningEnable and BasicHardeningInstallFail2Ban
+
+- name: Start/Enable the fail2ban service
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+  when: BasicHardeningEnable and BasicHardeningInstallFail2Ban
+
+#
+# Install and enable rkhunter
+#
+- name: Install rkhunter
+  apt:
+    name: rkhunter
+    state: latest
+  when: BasicHardeningEnable and BasicHardeningInstallRkhunter
+
+- name: Configure rkhunter for daily runs
+  lineinfile:
+           dest: /etc/default/rkhunter
+           regexp: '^CRON_DAILY_RUN='
+           line: 'CRON_DAILY_RUN="yes"'
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningInstallRkhunter
+  
+
+- name: Enable rkhunter for weekly updates
+  lineinfile:
+           dest: /etc/default/rkhunter
+           regexp: '^CRON_DB_UPDATE='
+           line: 'CRON_DB_UPDATE="yes"'
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningInstallRkhunter
+
+- name: Enable rkhunter automatic database updates
+  lineinfile:
+           dest: /etc/default/rkhunter
+           regexp: '^APT_AUTOGEN='
+           line: 'APT_AUTOGEN="yes"'
+           state: present
+           backup: yes
+  when: BasicHardeningEnable and BasicHardeningInstallRkhunter
+
+#
+# Install per user tmp dirs
+#
+- name: Install libpam-tmpdir
+  package:
+    name: libpam-tmpdir
+    state: latest
+  when: BasicHardeningEnable
+
+#
+# install debsums for verifying package integrity
+#
+- name: Install debsums
+  package:
+    name: debsums
+    state: latest
+  when: BasicHardeningEnable
+
+#
+# Install the debsecan tool
+#
+- name: Install debsecan
+  package:
+    name: debsecan
+    state: latest
+  when: BasicHardeningEnable
+
+#
+# Install the lynis tool
+#
+- name: Add lynis Debian Repository GPG Key
+  ansible.builtin.apt_key:
+    url: https://packages.cisofy.com/keys/cisofy-software-public.key
+    state: present
+  when: BasicHardeningEnable and BasicHardeningInstallLynis
+
+- name: Add Debian Lynis Repository
+  ansible.builtin.apt_repository:
+    repo: deb https://packages.cisofy.com/community/lynis/deb/ stable main
+    state: present
+  when: BasicHardeningEnable and BasicHardeningInstallLynis
+
+- name: Install lynis
+  package:
+    name: lynis
+    state: latest
+  when: BasicHardeningEnable and BasicHardeningInstallLynis
+
+#
+# Install and enable usbguard
+#
+- name: Install usbguard
+  package:
+    name: usbguard
+    state: latest
+  when: BasicHardeningEnable and BasicHardeningInstallUSBGuard
+
+#
+# Disable core dumps as we are not checking them anyway
+#
+- name: Disable Core Dumps 1
+  pam_limits:
+      domain: "*"
+      limit_item: "core"
+      limit_type: "hard"
+      value: "0"
+  when: BasicHardeningEnable
+
+- name: Disable Core Dumps 2
+  pam_limits:
+      domain: "*"
+      limit_item: "core"
+      limit_type: "soft"
+      value: "0"
+  when: BasicHardeningEnable
+
+- name: Prevent setuid programs to core dump
+  sysctl:
+    name: fs.suid_dumpable
+    value: '0'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Deactivate kernel core dumps
+  sysctl:
+    name: kernel.core_pattern
+    value: '|/bin/false'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Setup maxlogins
+  pam_limits:
+    domain: "*"
+    limit_item: "maxlogins"
+    limit_type: "hard"
+    value: "4"
+  when: BasicHardeningEnable
+
+- name: Setup nproc
+  pam_limits:
+    domain: "*"
+    limit_item: "nproc"
+    limit_type: "hard"
+    value: "1024"
+  when: BasicHardeningEnable
+
+- name: Disallow opening files in world writeable sticky directories
+  sysctl:
+    name: fs.protected_regular
+    value: '2'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Disallow opening fifos in world writeable sticky directories
+  sysctl:
+    name: fs.protected_fifos
+    value: '1'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Protect hardlinks
+  sysctl:
+    name: fs.protected_hardlinks
+    value: '1'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Protect symlinks
+  sysctl:
+    name: fs.protected_symlinks
+    value: '1'
+    state: present
+  when: BasicHardeningEnable
+
+- name: Disallow bpf loading for normal users
+  sysctl:
+    name: kernel.unprivileged_bpf_disabled
+    value: '1'
+    state: present
+  when: BasicHardeningEnable and (ansible_facts.distribution_release == "bullseye" or ansible_facts.distribution_release == "buster")
+
+
+- name: harden den bpf jit compilter
+  sysctl:
+    name: net.core.bpf_jit_harden
+    value: '2'
+    state: present
+  when: BasicHardeningEnable and ansible_facts.distribution_release == "bullseye"
