@@ -405,7 +405,7 @@
     name: kernel.unprivileged_bpf_disabled
     value: '1'
     state: present
-  when: BasicHardeningEnable and (ansible_facts.distribution_release == "bullseye" or ansible_facts.distribution_release == "buster")
+  when: BasicHardeningEnable and ansible_kernel is version_compare('5.8','>=')
 
 
 - name: harden den bpf jit compilter
@@ -413,4 +413,4 @@
     name: net.core.bpf_jit_harden
     value: '2'
     state: present
-  when: BasicHardeningEnable and ansible_facts.distribution_release == "bullseye"
+  when: BasicHardeningEnable and  ansible_kernel is version_compare('5.8','>=')
